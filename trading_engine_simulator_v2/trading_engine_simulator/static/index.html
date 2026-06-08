@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TradeSim — Trading Engine Simulator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════ HEADER ═══════════════════════════ -->
+<header class="header">
+    <div class="data-banner" style="display:flex;align-items:center;justify-content:space-between;padding:6px 20px;background:rgba(0,208,156,0.08);border-bottom:1px solid rgba(0,208,156,0.2);font-size:11px;color:#8b949e;">
+        <span>📡 Live data powered by <strong style="color:#00d09c">Binance Public API</strong> — free, no API key required</span>
+        <button id="refresh-chart-btn" style="background:transparent;color:#8b949e;border:1px solid #30363d;border-radius:4px;padding:3px 10px;font-size:14px;cursor:pointer;">↻ Refresh</button>
+    </div>
+    <div class="header-left">
+        <span class="logo">&#128200; TradeSim</span>
+        <select id="symbol-select" class="symbol-select">
+            <option value="BTCUSDT">BTC / USDT</option>
+            <option value="ETHUSDT">ETH / USDT</option>
+            <option value="BNBUSDT">BNB / USDT</option>
+            <option value="SOLUSDT">SOL / USDT</option>
+            <option value="XRPUSDT">XRP / USDT</option>
+        </select>
+    </div>
+    <div class="header-right">
+        <button id="seed-btn" class="btn btn-seed">&#127793; Seed Market</button>
+        <span class="ws-status">
+            <span id="ws-dot" class="ws-dot offline"></span>
+            <span id="ws-label">Disconnected</span>
+        </span>
+    </div>
+</header>
+
+<!-- ═══════════════════════════ MAIN GRID ════════════════════════ -->
+<main class="main-grid">
+
+    <!-- ── LEFT : Watchlist ───────────────────────────────────── -->
+    <aside class="watchlist-panel">
+        <h3 class="panel-title">Watchlist</h3>
+        <div id="watchlist" class="watchlist">
+            <div class="watchlist-item active" data-symbol="BTCUSDT">
+                <span class="wl-name">BTCUSDT</span>
+                <span class="wl-price" id="wl-price-BTCUSDT">—</span>
+            </div>
+            <div class="watchlist-item" data-symbol="ETHUSDT">
+                <span class="wl-name">ETHUSDT</span>
+                <span class="wl-price" id="wl-price-ETHUSDT">—</span>
+            </div>
+            <div class="watchlist-item" data-symbol="BNBUSDT">
+                <span class="wl-name">BNBUSDT</span>
+                <span class="wl-price" id="wl-price-BNBUSDT">—</span>
+            </div>
+            <div class="watchlist-item" data-symbol="SOLUSDT">
+                <span class="wl-name">SOLUSDT</span>
+                <span class="wl-price" id="wl-price-SOLUSDT">—</span>
+            </div>
+            <div class="watchlist-item" data-symbol="XRPUSDT">
+                <span class="wl-name">XRPUSDT</span>
+                <span class="wl-price" id="wl-price-XRPUSDT">—</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ── CENTER : Chart + Tabs ─────────────────────────────── -->
+    <section class="center-panel">
+        <!-- Chart -->
+        <div id="chart-container" class="chart-container"></div>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+            <button class="tab-btn active" data-tab="orderbook">Order Book</button>
+            <button class="tab-btn" data-tab="trades">Recent Trades</button>
+            <button class="tab-btn" data-tab="myorders">My Orders</button>
+        </div>
+
+        <!-- Tab Content: Order Book -->
+        <div id="tab-orderbook" class="tab-content active">
+            <div class="orderbook">
+                <div class="book-side book-bids">
+                    <div class="book-header">
+                        <span>Price</span><span>Qty</span><span>Total</span>
+                    </div>
+                    <div id="bids-list" class="book-rows"></div>
+                </div>
+                <div class="book-spread" id="book-spread">Spread: —</div>
+                <div class="book-side book-asks">
+                    <div class="book-header">
+                        <span>Price</span><span>Qty</span><span>Total</span>
+                    </div>
+                    <div id="asks-list" class="book-rows"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Recent Trades -->
+        <div id="tab-trades" class="tab-content">
+            <div class="trades-header">
+                <span>Time</span><span>Price</span><span>Quantity</span><span>Side</span>
+            </div>
+            <div id="trades-list" class="trades-list"></div>
+        </div>
+
+        <!-- Tab Content: My Orders -->
+        <div id="tab-myorders" class="tab-content">
+            <div class="myorders-header">
+                <span>Symbol</span><span>Side</span><span>Type</span><span>Price</span>
+                <span>Qty</span><span>Filled</span><span>Status</span><span></span>
+            </div>
+            <div id="myorders-list" class="myorders-list"></div>
+        </div>
+    </section>
+
+    <!-- ── RIGHT : Order Form ────────────────────────────────── -->
+    <aside class="order-panel">
+        <h3 class="panel-title">Place Order</h3>
+
+        <!-- Side Toggle -->
+        <div class="side-toggle">
+            <button id="side-buy" class="side-btn buy active">BUY</button>
+            <button id="side-sell" class="side-btn sell">SELL</button>
+        </div>
+
+        <form id="order-form" class="order-form" autocomplete="off">
+            <!-- Order Type -->
+            <label class="form-label">Order Type</label>
+            <select id="order-type" class="form-input">
+                <option value="LIMIT">Limit</option>
+                <option value="MARKET">Market</option>
+                <option value="LIMIT_MAKER">Limit Maker</option>
+                <option value="STOP_LOSS">Stop Loss</option>
+                <option value="STOP_LOSS_LIMIT">Stop Loss Limit</option>
+            </select>
+
+            <!-- Price -->
+            <div id="price-group" class="form-group">
+                <label class="form-label">Price</label>
+                <input type="number" id="order-price" class="form-input" step="any" placeholder="0.00">
+            </div>
+
+            <!-- Stop Price -->
+            <div id="stop-price-group" class="form-group" style="display:none">
+                <label class="form-label">Stop Price</label>
+                <input type="number" id="order-stop-price" class="form-input" step="any" placeholder="0.00">
+            </div>
+
+            <!-- Quantity -->
+            <label class="form-label">Quantity</label>
+            <input type="number" id="order-quantity" class="form-input" step="any" placeholder="0.00" required>
+
+            <!-- Time in Force -->
+            <label class="form-label">Time in Force</label>
+            <select id="order-tif" class="form-input">
+                <option value="GTC">GTC — Good Til Canceled</option>
+                <option value="IOC">IOC — Immediate or Cancel</option>
+                <option value="FOK">FOK — Fill or Kill</option>
+            </select>
+
+            <!-- Submit -->
+            <button type="submit" id="submit-btn" class="btn btn-submit btn-buy">
+                Place BUY Order
+            </button>
+        </form>
+
+        <!-- Quick stats -->
+        <div class="quick-stats">
+            <div class="stat">
+                <span class="stat-label">Best Bid</span>
+                <span class="stat-value green" id="stat-bid">—</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Best Ask</span>
+                <span class="stat-value red" id="stat-ask">—</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Last Price</span>
+                <span class="stat-value" id="stat-last">—</span>
+            </div>
+            <div class="stat">
+                <span class="stat-label">Spread</span>
+                <span class="stat-value" id="stat-spread">—</span>
+            </div>
+        </div>
+    </aside>
+
+</main>
+
+<!-- ═══════════════════════════ TOAST CONTAINER ═════════════════ -->
+<div id="toast-container" class="toast-container"></div>
+
+<!-- ═══════════════════════════ SCRIPTS ═════════════════════════ -->
+<script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+<script src="/static/js/app.js"></script>
+</body>
+</html>
